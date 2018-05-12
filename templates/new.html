@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}
+    <title>KPaste</title>
+{% endblock %}
+<head>
+</head>
+{% block body %}
+    <div class="ui container">
+        <form class="ui form" id="form" action={{ url_for("create") }} method="POST" autocomplete="on" style="top: 3em;">
+            <h2 class="ui dividing header">KPaste</h2>
+            <div class="two fields">
+                <div class="four wide field">
+                    <label for="title">Title</label>
+                    <input class="small_input" id="title" type="text" name="title" placeholder="Title" maxlength="20"/>
+                </div>
+                <div class="three wide field">
+                    <label for="author">Paster</label>
+                    <input class="" id="author" type="text" name="author" placeholder="Paster" />
+                </div>
+            </div>
+            <div class="two fields">
+                <div class="two wide field">
+                    <label for="lang_select">Language</label>
+                    <select class="ui fluid dropdown" name="language" id="lang_select">
+                        {% for lang in languages %} <option value="{{ lang.id }}">{{ lang.name }}</option> {% endfor %}
+                    </select>
+                </div>
+                <div class="two wide field">
+                    <label for="days_select">Validity Days</label>
+                    <select class="ui dropdown" name="validity_days" id="days_select">
+                        {% for days, name in days_opt.items() %} <option value="{{ days }}">{{ name }}</option> {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="field" id="code">
+                <label for="content">Code</label>
+                <textarea class="long_input" rows="15" id="content" name="rawcontent" placeholder="Enter Your Code" required></textarea>
+            </div>
+            <div class="field" id="other">
+                <label for="other">Other</label>
+                <textarea class="long_input" rows="5" id="other" name="other" placeholder="Some Others" maxlength="200"></textarea>
+            </div>
+            <button class="ui primary button" type="submit">Submit</button>
+        </form>
+        
+    </div>
+{% endblock %}
