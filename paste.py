@@ -16,17 +16,30 @@ def expired_check_timer_handler(db):
 
 @app.route('/canceltimer')
 def cancel_timer():
-    if expired_check_timer:
-        expired_check_timer.cancel()
-        print('timer canceled')
-    return redirect(url_for('new'))
+    try:
+        if expired_check_timer and expired_check_timer.is_alive():
+            expired_check_timer.cancel()
+            return 'timer canceled'
+        else:
+            return 'timer has not started'
+    except:
+        return "Canceltimer: some errors occured"
 
 @app.route('/starttimer')
 def start_timer():
-    if not expired_check_timer or not expired_check_timer.is_alive():
-        expired_check_timer_handler(db)
-        print('timer started')
-    return redirect(url_for('new'))
+    try:
+        if not expired_check_timer or not expired_check_timer.is_alive():
+            expired_check_timer_handler(db)
+            print('timer started')
+            return 'timer started'
+        else:
+            print('timer has been alive')
+            return 'timer has been alive'
+    except Exception as e:
+        print('[Start timer: some errors occured ]{}'.format(str(e)))
+        return 'Start timer: some errors occured<br \>' + str(e)
+
+start_timer()
 
 @app.route('/')
 @app.route('/new/')
