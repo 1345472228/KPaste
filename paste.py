@@ -1,11 +1,10 @@
 from flask import Flask, url_for, redirect, render_template, flash, request, g
-import DB
+import db
 import threading
 from datetime import timedelta
 
 app = Flask(__name__)
-session_func = DB.sessionmaker(bind=DB.engine)
-db = DB.DB(session_func)
+db = db.DB()
 
 expired_check_timer = None
 def expired_check_timer_handler(db):
@@ -14,19 +13,30 @@ def expired_check_timer_handler(db):
     expired_check_timer.start()
     db.check_validity()
 
+@app.before_request
+def begin_db(exception=None):
+    db.begin()
+
+@app.teardown_request
+def end_db(exception=None):
+    db.end()
+
 @app.route('/canceltimer')
 def cancel_timer():
     try:
         if expired_check_timer and expired_check_timer.is_alive():
             expired_check_timer.cancel()
+            print('timer canceled')
             return 'timer canceled'
         else:
+            print('timer has not started')
             return 'timer has not started'
     except:
         return "Canceltimer: some errors occured"
 
 @app.route('/starttimer')
 def start_timer():
+    db.begin()
     try:
         if not expired_check_timer or not expired_check_timer.is_alive():
             expired_check_timer_handler(db)
@@ -38,8 +48,8 @@ def start_timer():
     except Exception as e:
         print('[Start timer: some errors occured ]{}'.format(str(e)))
         return 'Start timer: some errors occured<br \>' + str(e)
-
-start_timer()
+    finally:
+        db.end()
 
 @app.route('/')
 @app.route('/new/')
@@ -75,8 +85,9 @@ def create():
     lang = db.query_lang(form['language'])
     if lang:
         newpost = db.add_post(**form)
-        db.commit()
+        db.session.commit()
         return redirect(url_for('show', post_id=newpost.id))
 
 if __name__ == '__main__':
+    start_timer()
     app.run(debug=True)

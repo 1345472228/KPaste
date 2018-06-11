@@ -3,7 +3,7 @@ import markdown
 from sqlalchemy import create_engine, ForeignKey, func
 from sqlalchemy import Column, String, Integer, Text, TIMESTAMP
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 
 with open('./sqlurl.txt') as f:
     engine = create_engine(f.readline(), echo=False)
@@ -52,17 +52,32 @@ class Language(Base):
             format(self.id, self.name)
 
 class DB():
-    session = None
     # PostWithLang = namedtuple('PostWithLang', ['Post', 'Language'])
-    languages = []
+    # languages = []
 
-    def __init__(self, sessionmaker):
-        self.session = sessionmaker()
-        self.language = list(self.query_lang(0, q_all=True))
+    def __init__(self):
+        self.ScopedSession = scoped_session(sessionmaker(bind=engine))
+        # self.language = list(self.query_lang(0, q_all=True))
+        self._session = None
+
+    @property
+    def session(self):
+        if self._session:
+            return self._session
+        else:
+            raise Exception('Have no session instance. Call ".begin()" first')
+
+
+    def begin(self):
+        self._session = self.ScopedSession()
+
+    def end(self):
+        self.ScopedSession.remove()
+        self._session = None
 
     def add_post(self, rawcontent, language, datetime=None,
                  validity_days=None, title=None, author=None, other=None,
-                 **keyargs):
+                 **kwargs):
 
         if isinstance(language, int):
             lang_obj = self.query_lang(language)
@@ -82,29 +97,26 @@ class DB():
                             author=author)
             new_post.language = lang_obj
             try:
-                self.commit()
+                self.session.commit()
                 return new_post
             except:
                 self.session.rollback()
                 raise IOError('Add post: commit failed')
 
     def query_post(self, post_id, q_all=False):
-        try:
-            if q_all:
-                return self.session.query(Post, Language). \
-                    outerjoin(Language)
-            else:
-                return self.session.query(Post, Language). \
-                    outerjoin(Language). \
-                    filter(Post.id == post_id).one_or_none()
-        except:
-            raise IOError("Query post Failed")
+        if q_all:
+            return self.session.query(Post, Language). \
+                outerjoin(Language)
+        else:
+            return self.session.query(Post, Language). \
+                outerjoin(Language). \
+                filter(Post.id == post_id).one_or_none()
 
     def add_language(self, lang_name):
         lang = Language(name=lang_name)
         try:
             self.session.add(lang)
-            self.commit()
+            self.session.commit()
             return lang
         except:
             self.session.rollback()
@@ -115,9 +127,6 @@ class DB():
             return self.session.query(Language)
         else:
             return self.session.query(Language).filter(Language.id == lang_id).one_or_none()
-
-    def commit(self):
-        self.session.commit()
 
     def expired_and_del(self, post):
         if post.is_expired():
@@ -136,9 +145,9 @@ class DB():
         for q in self.query_post(0, q_all=True):
             self.expired_and_del(q.Post)
 
-Base.metadata.create_all(engine)
-
 if __name__ == "__main__":
+    Base.metadata.create_all(engine)
+
     db = DB(sessionmaker(bind=engine))
 
     # p1 = Post(title="huffman", language_id=1)
