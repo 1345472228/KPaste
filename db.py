@@ -1,21 +1,30 @@
 import datetime
+
 import markdown
-from sqlalchemy import create_engine, ForeignKey, func
 from sqlalchemy import Column, String, Integer, Text, TIMESTAMP
+from sqlalchemy import create_engine, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 
 with open('./sqlurl.txt') as f:
     engine = create_engine(f.readline(), echo=False)
 
-# engine = create_engine("sqlite:///memory:")
 Base = declarative_base()
+
+Post_form_require_items = ('title', 'author', 'language_id', 'validity_days',
+                           'rawcontent', 'other')
+days_opt = {
+    1: 'one day',
+    3: 'three days',
+    7: 'one week',
+    14: 'one fortnight'
+}
 
 
 class Post(Base):
     __tablename__ = "post"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(40), default="Untitled")
     other = Column(String(40), default="")
     author = Column(String(20), default="Unnamed")
@@ -27,8 +36,28 @@ class Post(Base):
 
     language = relationship("Language", back_populates="post")
 
+    column_tuple = ('id', 'title', 'other', 'author', 'rawcontent', 'html',
+                    ('datetime', str), 'validity_days', 'language_id',
+                    ('language', lambda obj: obj.to_dict())
+                    )
+
+    def to_dict(self):
+        d = {}
+        for colname in self.column_tuple:
+            func = None
+            if isinstance(colname, (tuple, list)):
+                col = getattr(self, colname[0], None)
+                func = colname[1]
+                colname = colname[0]
+            else:
+                col = getattr(self, colname, None)
+            if func:
+                col = func(col)
+            d[colname] = col
+        return d
+
     def __repr__(self):
-        return "<Post(id={}, title='{}', author={}, language_id={}, datetime={}, validity_days={})>".\
+        return "<Post(id={}, title='{}', author={}, language_id={}, datetime={}, validity_days={})>". \
             format(self.id, self.title, self.author, self.language_id, self.datetime, self.validity_days)
 
     def is_expired(self):
@@ -39,6 +68,7 @@ class Post(Base):
         else:
             return False
 
+
 class Language(Base):
     __tablename__ = "language"
 
@@ -47,33 +77,32 @@ class Language(Base):
 
     post = relationship("Post", back_populates="language")
 
+    column_tuple = ('id', 'name')
+
+    def to_dict(self):
+        d = {}
+        for colname in self.column_tuple:
+            d[colname] = getattr(self, colname, None)
+        return d
+
     def __repr__(self):
-        return "<Language(id={}, name='{}')>".\
+        return "<Language(id={}, name='{}')>". \
             format(self.id, self.name)
 
+
 class DB():
-    # PostWithLang = namedtuple('PostWithLang', ['Post', 'Language'])
-    # languages = []
 
     def __init__(self):
         self.ScopedSession = scoped_session(sessionmaker(bind=engine))
-        # self.language = list(self.query_lang(0, q_all=True))
-        self._session = None
 
     @property
     def session(self):
-        if self._session:
-            return self._session
-        else:
-            raise Exception('Have no session instance. Call ".begin()" first')
-
-
-    def begin(self):
         self._session = self.ScopedSession()
+        return self.ScopedSession()
 
-    def end(self):
+    def close_session(self):
         self.ScopedSession.remove()
-        self._session = None
+        # self._session = None
 
     def add_post(self, rawcontent, language, datetime=None,
                  validity_days=None, title=None, author=None, other=None,
@@ -97,6 +126,7 @@ class DB():
                             author=author)
             new_post.language = lang_obj
             try:
+                print(self.session.dirty)
                 self.session.commit()
                 return new_post
             except:
@@ -141,39 +171,31 @@ class DB():
         else:
             return False
 
+    def delete(self, obj):
+        if isinstance(obj, Base):
+            try:
+                self.session.delete(obj)
+                self.session.commit()
+            except Exception as e:
+                self.session.rollback()
+                raise e
+        else:
+            raise TypeError('delete require a Base instance, but got a ' + type(obj))
+
     def check_validity(self):
         for q in self.query_post(0, q_all=True):
             self.expired_and_del(q.Post)
 
+
 if __name__ == "__main__":
     Base.metadata.create_all(engine)
 
-    db = DB(sessionmaker(bind=engine))
+    db = DB()
 
-    # p1 = Post(title="huffman", language_id=1)
-    # p2 = Post(title='安徽')
-    # l1 = Language(name="c")
-    # l2 = Language(name="bash")
-    # l3 = Language(name="Plain")
-    # p1.language = l1
-    # p2.language = l2
+    l = db.query_lang(19)
+    # db.add_post('123', 19)
 
-    # db.session.add_all([l1, l2, l3])
-    # db.add_post(title="哈哈哈", rawcontent="", language=l1, datetime=datetime.datetime(2018, 5, 1), author=None)
-    # db.add_post(title="嘿嘿嘿", rawcontent="#! /bin/bash", language=l2, author=None)
-
-    # db.commit()
-    for q in db.query_lang(0, q_all=True):
-        db.session.delete(q)
-    db.commit()
-    with open('languages.txt') as f:
-        tmp = f.readlines()
-    langs = []
-    for x in tmp:
-        langs.append(Language(name=x.replace('\n', '')))
-    print(langs)
-
-    db.session.add_all(langs)
-    db.commit()
-
-    db.check_validity()
+    # new = Post(rawcontent='0000')
+    # new.language = l
+    # db.session.add(new)
+    db.session.execute('alter table post auto_increment = 1;')

@@ -6,7 +6,7 @@
 </head>
 {% block body %}
     <div class="ui container">
-        <form class="ui form" id="form" action={{ url_for("create") }} method="POST" autocomplete="on" style="top: 3em;">
+        <form class="ui form" id="form" action={{ url_for("api.post_new") }} method="POST" autocomplete="on" style="top: 3em;">
             <h2 class="ui dividing header">KPaste</h2>
             <div class="two fields">
                 <div class="four wide field">
@@ -21,7 +21,7 @@
             <div class="two fields">
                 <div class="two wide field">
                     <label for="lang_select">Language</label>
-                    <select class="ui fluid dropdown" name="language" id="lang_select">
+                    <select class="ui fluid dropdown" name="language_id" id="lang_select">
                         {% for lang in languages %} <option value="{{ lang.id }}">{{ lang.name }}</option> {% endfor %}
                     </select>
                 </div>
