@@ -1,14 +1,12 @@
 import threading
 from datetime import timedelta
 
-__all__ = ('init', 'begin', 'stop', 'interval_sec')
-
 _expired_check_timer = None
 _db = None
 interval_sec = timedelta(1).total_seconds()
 
 
-def init(database):
+def init_db(database):
     global _db
     if _db is None:
         _db = database
@@ -25,7 +23,6 @@ def begin():
     if _expired_check_timer is None or not _expired_check_timer.is_alive():
         try:
             print('began')
-            print(__name__)
             _expired_check_timer_handler()
             return '[timer.begin]: Timer begin running now.'
         except Exception as e:

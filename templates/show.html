@@ -1,12 +1,15 @@
 {% extends 'base.html' %}
 {% if not PostAndLang %}
     <title>
-    404 | KPaste
+        404 | KPaste
     </title>
     ERROR 404: Paste Not Found!
 {% else %}
-    {% block css %} <link rel="stylesheet" type="text/css" href="/static/css/code.css"> {% endblock %}
-    {% block title %} <title>{% if PostAndLang.Post.title %}{{ PostAndLang.Post.title }} | KPaste{% else %}Untitled{% endif %}</title> {% endblock %}
+    {% block css %}
+        <link rel="stylesheet" type="text/css" href="/static/css/code.css"> {% endblock %}
+    {% block title %}
+        <title>{% if PostAndLang.Post.title %}{{ PostAndLang.Post.title }} | KPaste{% else %}Untitled{% endif %}</title>
+    {% endblock %}
     {% block body %}
         <div class="ui container" style="position: relative; top: 3em;">
             <div class="ui header">KPaste</div>
@@ -15,41 +18,42 @@
                 <div class="six wide column">
                     <table class="ui red celled table">
                         <thead>
-                            <th class="four wide"></th>
-                            <th class="ten wide"></th>
+                        <th class="four wide"></th>
+                        <th class="ten wide"></th>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>Title:</td>
-                                <td>{{ PostAndLang.Post.title }}</td>
-                            </tr>
-                            <tr>
-                                <td>Paster:</td>
-                                <td>{{ PostAndLang.Post.author }}</td>
-                            </tr>
-                            <tr>
-                                <td>Language:</td>
-                                <td>{{ PostAndLang.Language.name }}</td>
-                            </tr>
-                            <tr>
-                                <td>Paste Time:</td>
-                                <td>{{ PostAndLang.Post.datetime }}</td>
-                            </tr>
-                            <tr>
-                                <td>Validity Days:</td>
-                                <td> {% if PostAndLang.Post.validity_days > 1 %}{{ PostAndLang.Post.validity_days }} Days {% else %} {{ PostAndLang.Post.validity_days }} Day {% endif %}</td>
-                            </tr>
+                        <tr>
+                            <td>Title:</td>
+                            <td>{{ PostAndLang.Post.title | title }}</td>
+                        </tr>
+                        <tr>
+                            <td>Paster:</td>
+                            <td>{{ PostAndLang.Post.author | title }}</td>
+                        </tr>
+                        <tr>
+                            <td>Language:</td>
+                            <td>{{ PostAndLang.Language.name | title }}</td>
+                        </tr>
+                        <tr>
+                            <td>Paste Time:</td>
+                            <td>{{ PostAndLang.Post.datetime }}</td>
+                        </tr>
+                        <tr>
+                            <td>Validity Days:</td>
+                            <td>{% if PostAndLang.Post.validity_days > 1 %}{{ PostAndLang.Post.validity_days }}
+                                Days {% else %} {{ PostAndLang.Post.validity_days }} Day {% endif %}</td>
+                        </tr>
                         </tbody>
                     </table>
                 </div>
-                    <div class="ten wide column">
-                        <div class="ui green segment">
-                            <h3 class="ui header">Remark</h3>
-                            <p>
-                                {{ PostAndLang.Post.other }}
-                            </p>
-                        </div>
+                <div class="ten wide column">
+                    <div class="ui green segment">
+                        <h3 class="ui header">Remark</h3>
+                        <p>
+                            {{ PostAndLang.Post.other }}
+                        </p>
                     </div>
+                </div>
             </div>
             <div class="ui blue segment">
                 <h3 class="ui header">Code</h3>

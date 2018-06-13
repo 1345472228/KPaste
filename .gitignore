@@ -5,3 +5,4 @@ gunicorn.conf
 venv/
 __pycache__/
 .idea/
+log/

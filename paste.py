@@ -4,25 +4,19 @@ import db
 import timer
 from api import api
 from db import days_opt
+import logger
 
 app = Flask(__name__)
+app.config.from_object('config.Debug')
 app.register_blueprint(api, url_prefix='/api')
-db = db.DB()
 
-timer.init(db)
-timer.begin()
+logger.init_app(app)
+db = db.DB()
+db.init_app(app)
+
+timer.init_db(db)
 app.add_url_rule('/timer/begin/', None, timer.begin)
 app.add_url_rule('/timer/stop/', None, timer.stop)
-
-
-@app.before_request
-def add_db_to_g():
-    g.db = db
-
-
-@app.teardown_request
-def end_db(exception=None):
-    db.close_session()
 
 
 @app.route('/')
@@ -36,7 +30,7 @@ def new():
 @app.route('/show/<int:post_id>')
 def show(post_id=None):
     if post_id:
-        PostAndLang = db.query_post(post_id=post_id)
+        PostAndLang = db.query_post_one(post_id=post_id)
         if PostAndLang:
             return render_template('show.html', PostAndLang=PostAndLang)
         else:
@@ -60,4 +54,4 @@ def create():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
