@@ -7,13 +7,13 @@ from sqlalchemy import create_engine, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 
+import bcrypt
+
 with open('./sqlurl.txt') as f:
     engine = create_engine(f.readline(), echo=False)
 
 Base = declarative_base()
 
-Post_form_require_items = ('title', 'author', 'language_id', 'validity_days',
-                           'rawcontent', 'other')
 days_opt = {
     3: 'Three days',
     7: 'A week',
@@ -32,18 +32,52 @@ class Post(Base):
     html = Column(Text, default='')
     datetime = Column(TIMESTAMP, server_default=func.now())
     validity_days = Column(Integer, server_default='3')
+    access_key = Column(String)
     language_id = Column(Integer, ForeignKey('language.id'))
 
-    # language = relationship("Language", backref="post")
+    _column_tuple = (
+        'id', 'title', 'other', 'author', 'rawcontent', 'html',
+        ('datetime', str),
+        'validity_days',
+        'access_key',
+        'language_id',
+        ('language', lambda obj: obj and obj.to_dict())
+    )
 
-    column_tuple = ('id', 'title', 'other', 'author', 'rawcontent', 'html',
-                    ('datetime', str), 'validity_days', 'language_id',
-                    ('language', lambda obj: obj and obj.to_dict())
-                    )
+    salt = b'$2b$12$aJF41CBAnEozj6ch82mrLe'
+    _require_items = (
+        'language_id',
+        'rawcontent',
+        'access_key'
+    )
+
+    def set_access_key(self, key):
+        if isinstance(key, str):
+            key = key.encode('utf8')
+        self.access_key = bcrypt.hashpw(key, self.salt)
+
+    def check_access_key(self, inkey):
+        if isinstance(inkey, str):
+            inkey = inkey.encode('utf8')
+        inhash = bcrypt.hashpw(inkey, self.salt)
+        access_key = ''
+        try:
+            access_key = self.access_key.encode('utf8')
+        except:
+            pass
+        return inhash == access_key
+
+    @classmethod
+    def check_form(cls, form_dict):
+        '''检查所需参数是否足够'''
+        for x in cls._require_items:
+            if x not in form_dict:
+                return x
+        return None
 
     def to_dict(self):
         d = {}
-        for colname in self.column_tuple:
+        for colname in self._column_tuple:
             func = None
             if isinstance(colname, (tuple, list)):
                 col = getattr(self, colname[0], None)
@@ -118,32 +152,38 @@ class DB():
         self.ScopedSession.remove()
         self._session = None
 
-    def add_post(self, rawcontent, language, datetime=None,
-                 validity_days=None, title=None, author=None, other=None,
-                 **kwargs):
+    # def add_post(self, rawcontent, language, access_key, title=None,
+    #              author=None, other=None,
+    #              datetime=None, validity_days=None,
+    #              **kwargs):
+    def add_post(self, form, check_form=False, **kwargs):
+        form.update(kwargs)
 
-        if isinstance(language, int):
-            lang_obj = self.query_lang(language)
-        elif isinstance(language, Language):
-            lang_obj = language
-        else:
-            raise TypeError("Unexcepted type of language: {}".format(type(language)))
+        if check_form:
+            err = Post.check_form(form)
+            if err is not None:
+                raise ValueError('{} cannot be None'.format(err))
 
-        if not lang_obj:
-            # Log here
-            raise IndexError("No Such Language")
+        if isinstance(form['language'], int):
+            lang_obj = self.query_lang(form['language'])
+            if lang_obj is None:
+                raise IndexError("No Such Language")
+        elif isinstance(form['language'], Language):
+            lang_obj = form['language']
         else:
-            html = self.raw2html(rawcontent, lang_obj.name)
-            new_post = Post(title=title, rawcontent=rawcontent, html=html,
-                            other=other, datetime=datetime, validity_days=validity_days,
-                            author=author)
-            new_post.language = lang_obj
-            try:
-                self.session.commit()
-                return new_post
-            except:
-                self.session.rollback()
-                raise IOError('Add post: commit failed')
+            raise TypeError("Unexcepted type of language: {}".format(type(form['language'])))
+
+        html = self.raw2html(form['rawcontent'], lang_obj.name)
+        form['html'] = html
+        new_post = Post(**form)
+        new_post.language = lang_obj
+        new_post.set_access_key(form['access_key'])
+        try:
+            self.session.commit()
+            return new_post
+        except:
+            self.session.rollback()
+            raise IOError('Add post: commit failed')
 
     def raw2html(self, raw, lang):
         md = '```\n:::{} \n{}\n```\n'.format(lang, raw)
@@ -191,6 +231,7 @@ class DB():
         if isinstance(obj, Base):
             try:
                 self.session.delete(obj)
+                print(obj)
                 self.session.commit()
             except Exception as e:
                 self.session.rollback()
@@ -213,16 +254,7 @@ class DB():
                 return False
 
     def pagiate(self, page, per_page):
-        return self.session.query(Post).offset((per_page-1)*page).limit(per_page)
+        return self.session.query(Post).offset((page-1)*per_page).limit(per_page)
 
 if __name__ == "__main__":
     Base.metadata.create_all(engine)
-
-    db = DB()
-
-    l1 = db.query_lang(19)
-    l2 = db.query_lang(19)
-    p1 = db.query_post_one(post_id=10)
-    p1.Post.language_id = 19
-    # db.session.add(new)
-    db.session.commit()

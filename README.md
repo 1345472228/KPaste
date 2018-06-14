@@ -7,7 +7,9 @@
 - orm： Sqlalchemy
 - 数据库迁移： alembic
 
-暂时只支持查看和新建，以及一些简单的RESTful api因为是用来练手，所以精力大多都放在重构上了。
+支持查看和新建，以及一些简单的RESTful api因为是用来练手，所以精力大多都放在重构上了。
+
+新增：有正确accesskey的用户，可以进行删除操作
 
 暂时支持的api有:
 - `/api/post/`
@@ -16,13 +18,17 @@
     参数：page，perpage == 页数，每页文章数
   - POST：新建post。
   
-    参数： title, author, language_id, validity_days, rawcontent, other
+    参数： title, author, language_id, validity_days, rawcontent, other, access_key
 
 - `/api/post/<int:post_id>`
     - GET：获取一个post。
     
     - PUT：更新post。
     
+      参数：access_key
+    
     - DELETE：删除post。
+    
+      参数：access_key
     
  api返回的都是json。若成功，json对象中有键值对`{'succeed': '1'}`；若失败，有键值对`{'error': <error info>}`

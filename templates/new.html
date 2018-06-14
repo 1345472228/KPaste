@@ -2,6 +2,9 @@
 {% block title %}
     <title>KPaste</title>
 {% endblock %}
+{% block js %}
+    <script src="/static/js/new.js"></script>
+{% endblock %}
 <head>
 </head>
 {% block body %}
@@ -16,17 +19,21 @@
 
             <!--第一行-->
             <div class="two fields">
-                <div class="eightwide field">
+                <div class="six wide field">
                     <label for="title">Title </label>
                     <input class="ui input" id="title" type="text" name="title" placeholder="Untitled" maxlength="20"/>
                 </div>
 
-                <div class="eight wide field">
+                <div class="six wide field">
                     <label for="author">Paster</label>
                     <input class='ui input' id="author" type="text" name="author" placeholder="Pick"/>
                 </div>
             </div>
             <!--第一行-->
+            <div class="six wide field">
+                <label for="author">Access Key</label>
+                <input class='ui input' id="author" type="text" name="access_key" placeholder="Set Access Key for post"/>
+            </div>
 
 
             <!--两个大输入框-->

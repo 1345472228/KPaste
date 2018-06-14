@@ -39,19 +39,5 @@ def show(post_id=None):
         return "Error post_id"
 
 
-@app.route('/create/', methods=["POST"])
-def create():
-    form = request.form.to_dict()
-    try:
-        form['language'] = int(form['language'])
-    except:
-        return 'Error form'
-
-    lang = db.query_lang(form['language'])
-    if lang:
-        newpost = db.add_post(**form)
-        return redirect(url_for('show', post_id=newpost.id))
-
-
 if __name__ == '__main__':
     app.run()

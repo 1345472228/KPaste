@@ -5,16 +5,23 @@
     </title>
     ERROR 404: Paste Not Found!
 {% else %}
-    {% block css %}
-        <link rel="stylesheet" type="text/css" href="/static/css/code.css"> {% endblock %}
+    {% block css %} <link rel="stylesheet" type="text/css" href="/static/css/code.css"> {% endblock %}
+    {% block js %} <script src="/static/js/show.js"></script> {% endblock %}
     {% block title %}
         <title>{% if PostAndLang.Post.title %}{{ PostAndLang.Post.title }} | KPaste{% else %}Untitled{% endif %}</title>
     {% endblock %}
     {% block body %}
+        <p style="display: none" id="post_id">{{ PostAndLang.Post.id }}</p>
         <div class="ui container" style="position: relative; top: 3em;">
             <div class="ui header">KPaste</div>
             <div class="ui divider"></div>
             <div class="ui grid">
+                <div class="ten wide column">
+                    <div class="ui blue segment">
+                        <h3 class="ui header">Code</h3>
+                        <p>{{ PostAndLang.Post.html|safe }}</p>
+                    </div>
+                </div>
                 <div class="six wide column">
                     <table class="ui red celled table">
                         <thead>
@@ -45,8 +52,9 @@
                         </tr>
                         </tbody>
                     </table>
-                </div>
-                <div class="ten wide column">
+                    <button class="ui button red" id="delete">Delete</button>
+                    <button class="ui button green" id="edit">Edit</button>
+
                     <div class="ui green segment">
                         <h3 class="ui header">Remark</h3>
                         <p>
@@ -55,9 +63,20 @@
                     </div>
                 </div>
             </div>
-            <div class="ui blue segment">
-                <h3 class="ui header">Code</h3>
-                <p>{{ PostAndLang.Post.html|safe }}</p>
+        </div>
+
+{#        access_modal#}
+        <div class="ui mini modal" id="access_modal">
+            <div class="ui header">Require access key</div>
+            <div class="content">
+                <p>Delete operation requires correct access key</p>
+                <div class="ui input labeled">
+                    <input class="ui input" id="key" type="text">
+                </div>
+            </div>
+            <div class="ui actions">
+                <div class="ui cancel button">Cancel</div>
+                <div class="ui green ok button" id="del_enter">Enter</div>
             </div>
         </div>
     {% endblock %}
