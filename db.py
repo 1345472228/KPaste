@@ -1,3 +1,4 @@
+import crypt
 import datetime
 
 import markdown
@@ -7,18 +8,18 @@ from sqlalchemy import create_engine, ForeignKey, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 
-import bcrypt
+from exception import *
+
+class Tools():
+    @classmethod
+    def raw2html(cls, raw, lang):
+        md = '```\n:::{} \n{}\n```\n'.format(lang, raw)
+        return markdown.markdown(md, ["nl2br", "codehilite(linenums=True)", "extra"])
 
 with open('./sqlurl.txt') as f:
     engine = create_engine(f.readline(), echo=False)
 
 Base = declarative_base()
-
-days_opt = {
-    3: 'Three days',
-    7: 'A week',
-    14: 'Fortnight'
-}
 
 
 class Post(Base):
@@ -35,64 +36,102 @@ class Post(Base):
     access_key = Column(String)
     language_id = Column(Integer, ForeignKey('language.id'))
 
-    _column_tuple = (
+    _create_column = (
+        'title', 'other', 'author', 'rawcontent',
+        'html', 'validity_days', 'language_id'
+    )
+
+    _to_dict_tuple = (
         'id', 'title', 'other', 'author', 'rawcontent', 'html',
         ('datetime', str),
         'validity_days',
-        'access_key',
+        # 'access_key',
         'language_id',
         ('language', lambda obj: obj and obj.to_dict())
     )
 
-    salt = b'$2b$12$aJF41CBAnEozj6ch82mrLe'
+    _update_allow = (
+        'title', 'other', 'author', 'rawcontent', 'language_id'
+    )
+
+    # salt = b'$2b$12$aJF41CBAnEozj6ch82mrLe'
+    salt = '$6$WJEhX4A0KtbIWKNl'
     _require_items = (
         'language_id',
         'rawcontent',
         'access_key'
     )
 
+    @classmethod
+    def createFromDict(cls, dict):
+        d = {}
+        for key in dict:
+            if key in cls._create_column:
+                d[key] = dict[key]
+        return Post(**d)
+
     def set_access_key(self, key):
-        if isinstance(key, str):
-            key = key.encode('utf8')
-        self.access_key = bcrypt.hashpw(key, self.salt)
+        self.access_key = crypt.crypt(key, self.salt)
 
     def check_access_key(self, inkey):
-        if isinstance(inkey, str):
-            inkey = inkey.encode('utf8')
-        inhash = bcrypt.hashpw(inkey, self.salt)
-        access_key = ''
         try:
-            access_key = self.access_key.encode('utf8')
+            inhash = crypt.crypt(inkey, self.salt)
         except:
-            pass
-        return inhash == access_key
+            return False
+        return inhash == self.access_key
 
     @classmethod
     def check_form(cls, form_dict):
         '''检查所需参数是否足够'''
+        err = []
         for x in cls._require_items:
             if x not in form_dict:
-                return x
-        return None
+                err.append(x)
+        return err
+
+    def update(self, form):
+        warning = []
+        for key, value in form.items():
+            if key in self._update_allow:
+                setattr(self, key, value)
+            else:
+                warning.append('{} cannot be updated')
+
+        if 'rawcontent' in form:
+            self.html = Tools.raw2html(form['rawcontent'], self.language.name)
+
+        return warning
 
     def to_dict(self):
         d = {}
-        for colname in self._column_tuple:
+        for colname in self._to_dict_tuple:
             func = None
             if isinstance(colname, (tuple, list)):
                 col = getattr(self, colname[0], None)
                 func = colname[1]
+                if func:
+                    col = func(col)
                 colname = colname[0]
             else:
                 col = getattr(self, colname, None)
-            if func:
-                col = func(col)
             d[colname] = col
         return d
 
     def __repr__(self):
-        return "<Post(id={}, title='{}', author={}, language_id={}, datetime={}, validity_days={})>". \
-            format(self.id, self.title, self.author, self.language_id, self.datetime, self.validity_days)
+        return "<Post(id={}, title='{}', author={}, language_id={}, " \
+               "language={}, datetime={}, validity_days={})>". \
+            format( self.id, self.title, self.author,
+                    self.language_id, self.language,
+                    self.datetime, self.validity_days
+                    )
+
+    def __str__(self):
+        return "<Post(id={}, title='{}', author={}, language_id={}, " \
+               "\language={}, datetime={}, validity_days={})>". \
+            format( self.id, self.title, self.author,
+                    self.language_id, self.language,
+                    self.datetime, self.validity_days
+                    )
 
     def is_expired(self):
         now_sec = datetime.datetime.now().timestamp()
@@ -125,9 +164,16 @@ class Language(Base):
 
 
 class DB():
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls, *args, **kwargs)
+            cls.__init__(cls._instance)
+        return cls._instance
+
     def __init__(self):
         self.ScopedSession = scoped_session(sessionmaker(bind=engine))
-        self._session = None
         self.Post = Post
         self.Language = Language
 
@@ -140,76 +186,64 @@ class DB():
         def close_db(exception=None):
             self.close_session()
 
-        app.database = self
+        app._database = self
 
     @property
     def session(self):
-        if self._session is None:
-            self._session = self.ScopedSession()
-        return self._session
+        return self.ScopedSession()
 
     def close_session(self):
         self.ScopedSession.remove()
-        self._session = None
 
-    # def add_post(self, rawcontent, language, access_key, title=None,
-    #              author=None, other=None,
-    #              datetime=None, validity_days=None,
-    #              **kwargs):
-    def add_post(self, form, check_form=False, **kwargs):
-        form.update(kwargs)
+    def add_post(self, form, **kwargs):
 
-        if check_form:
-            err = Post.check_form(form)
-            if err is not None:
-                raise ValueError('{} cannot be None'.format(err))
+        err_list = Post.check_form(form)
+        if err_list:
+            raise ArgRequireError(err_list)
 
-        if isinstance(form['language'], int):
-            lang_obj = self.query_lang(form['language'])
-            if lang_obj is None:
-                raise IndexError("No Such Language")
-        elif isinstance(form['language'], Language):
-            lang_obj = form['language']
-        else:
-            raise TypeError("Unexcepted type of language: {}".format(type(form['language'])))
+        lang_obj = self.query_lang_one(lang_id=form.get('language_id'))
+        if lang_obj is None:
+            raise NoSuchLangError
 
-        html = self.raw2html(form['rawcontent'], lang_obj.name)
-        form['html'] = html
-        new_post = Post(**form)
-        new_post.language = lang_obj
-        new_post.set_access_key(form['access_key'])
+        form['html'] = Tools.raw2html(form.get('rawcontent'), lang_obj.name)
+
+        new_post = Post.createFromDict(form)
+        new_post.set_access_key(form.get('access_key', ''))
+
         try:
+            self.session.add(new_post)
             self.session.commit()
             return new_post
         except:
             self.session.rollback()
-            raise IOError('Add post: commit failed')
-
-    def raw2html(self, raw, lang):
-        md = '```\n:::{} \n{}\n```\n'.format(lang, raw)
-        return markdown.markdown(md, ["nl2br", "codehilite(linenums=True)", "extra"])
+            raise
 
     def query_post_all(self):
-        return self.session.query(Post, Language). \
-            outerjoin(Language)
+        return self.session.query(Post, Language)
 
     def query_post_one(self, post_id):
-        return self.session.query(Post, Language). \
-            outerjoin(Language). \
+        return self.session.query(Post). \
             filter(Post.id == post_id).one_or_none()
 
-    def update_post(self, post_obj, form):
-        post_obj.update(form)
-        if 'rawcontent' in form:
-            post_obj.html = self.raw2html(form['rawcontent'], post_obj.language.name)
+    def update_post(self, post, form):
+        if post is None:
+            raise NoSuchPostError
+
+        try:
+            form.pop('id')
+            form.pop('validity_days')
+        except:
+            pass
+
+        warning = post.update(form)
 
         try:
             self.session.commit()
-        except Exception as e:
+        except:
             self.session.rollback()
-            raise e
+            raise
 
-        return post_obj.id
+        return post.id, warning
 
     def add_language(self, lang_name):
         lang = Language(name=lang_name)
@@ -217,44 +251,48 @@ class DB():
             self.session.add(lang)
             self.session.commit()
             return lang
-        except Exception as e:
+        except:
             self.session.rollback()
-            raise e
+            raise
 
-    def query_lang(self, lang_id, q_all=False):
-        if q_all:
-            return self.session.query(Language)
-        else:
-            return self.session.query(Language).filter(Language.id == lang_id).one_or_none()
+    _languages = None
+    def query_lang_all(self, refresh=False):
+        if refresh or self._languages is None:
+            self._languages = self.session.query(Language)
+        return self._languages.all()
+
+    def query_lang_one(self, lang_id, refresh=False):
+        if refresh or self._languages is None:
+            self._languages = self.session.query(Language)
+        return self._languages.filter(Language.id == lang_id).one_or_none()
+
 
     def delete(self, obj):
         if isinstance(obj, Base):
             try:
                 self.session.delete(obj)
-                print(obj)
                 self.session.commit()
-            except Exception as e:
+            except:
                 self.session.rollback()
-                raise e
+                raise
         else:
             raise TypeError('delete require a Base instance, but got a ' + type(obj))
 
+    autodelete_log = []
     def check_validity(self):
-        for q in self.query_post_all(0):
+        for q in self.query_post_all():
             if q.Post.is_expired():
-                try:
-                    self.session.delete(q.Post)
-                    self.session.commit()
-                    print("deleted {}", q.Post)
-                    return True
-                except Exception as e:
-                    self.session.rollback()
-                    raise e
-            else:
-                return False
+                self.autodelete_log.append(str(q))
+                self.session.delete(q.Post)
+
+        try:
+            self.session.commit()
+        except:
+            self.session.rollback()
 
     def pagiate(self, page, per_page):
-        return self.session.query(Post).offset((page-1)*per_page).limit(per_page)
+        return self.session.query(Post).offset((page - 1) * per_page).limit(per_page)
+
 
 if __name__ == "__main__":
     Base.metadata.create_all(engine)

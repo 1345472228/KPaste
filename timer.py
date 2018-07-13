@@ -5,7 +5,6 @@ _expired_check_timer = None
 _db = None
 interval_sec = timedelta(1).total_seconds()
 
-
 def init_db(database):
     global _db
     if _db is None:
@@ -17,7 +16,6 @@ def _expired_check_timer_handler():
     _expired_check_timer = threading.Timer(interval_sec, _expired_check_timer_handler)
     _expired_check_timer.start()
     _db.check_validity()
-
 
 def begin():
     if _expired_check_timer is None or not _expired_check_timer.is_alive():
@@ -34,7 +32,6 @@ def begin():
     else:
         print('running')
         return "[timer.begin]: Timer is running."
-
 
 def stop():
     if _expired_check_timer and _expired_check_timer.is_alive():

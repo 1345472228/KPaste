@@ -12,36 +12,33 @@
 <head>
 </head>
 {% block body %}
-    <div class="ui container" style="position: relative; top: 3em;">
-        <div class="ui dividing header"><a href="/">KPaste</a></div>
+    <div class="ui container">
+        <div></div>
+        <h2 class="ui dividing header">KPaste</h2>
         <div class="ui error message" id="message" style="display: none;">
             <i class="close icon"></i>
             <span></span>
         </div>
-        <form class="ui form" id="form" action="{{ url_for('api.post') }}" method="post">
+        <form class="ui form" id="form" action="" method="post">
             {#            <!--第一行-->#}
             <div class="two fields">
                 <div class="four wide field">
                     <label for="title">标题 </label>
-                    <input class="ui input" id="title" type="text" name="title" placeholder="起个名字" maxlength="20"/>
+                    <input class="ui input" id="title" type="text" name="title"
+                           placeholder="起个名字" maxlength="20" value="{{ post.title }}"/>
                 </div>
 
                 <div class="four wide field">
                     <label for="author">作者</label>
-                    <input class='ui input' id="author" type="text" name="author" placeholder="可能是佩奇吧"/>
+                    <input class='ui input' id="author" type="text" name="author" placeholder="可能是佩奇吧"
+                                value="{{ post.author }}"/>
                 </div>
             </div>
-            {#            <!--第一行-->#}
-            <div class="four popup wide field" data-content="之后编辑或者删除的时候会用到">
-                <label for="author">Key</label>
-                <input class='ui input' id="key" type="text" name="access_key"
-                       placeholder="设置一个Key"/>
-            </div>
 
-            {#            <!--两个大输入框-->#}
             <div class="field" id="code">
                 <label for="rawcontent">代码</label>
-                <textarea class="input" rows="15" id="rawcontent" name="rawcontent"></textarea>
+                <textarea class="input" rows="15" id="rawcontent" name="rawcontent"
+                          content="{{ post.rawcontent }}"></textarea>
                 <div class="ui pointing red label" style="display: none;">
                     请写入内容
                 </div>
@@ -50,10 +47,9 @@
             <div class="field" id="remark">
                 <label for="other">备注</label>
                 <textarea class="input" rows="5" id="other" name="other"
-                          placeholder="一些其他的东西" maxlength="40"></textarea>
+                          placeholder="一些其他的东西" maxlength="40" content="{{ post.other }}"></textarea>
             </div>
-            {#            <!--两个大输入框-->#}
-            {#            <!--第三行两个元素-->#}
+
             <div class="two fields">
                 <div class="three wide field" id="lang">
                     <label for="lang_select">语言</label>
@@ -63,7 +59,7 @@
                         {%- endfor -%}
                     </select>
                 </div>
-                <div class="two wide field" id="days">
+                <div class="two wide field disabled" id="days">
                     <label for="days_select">有效期</label>
                     <select class="ui dropdown" name="validity_days" id="days_select">
                         {% for days, text in days_opt.items() -%}
@@ -73,25 +69,10 @@
                 </div>
             </div>
             {#            <!--第三行两个元素-->#}
-            <button class="ui blue button submit">提交</button>
+            <button class="ui blue button submit">更新</button>
         </form>
     </div>
     <script>
-        var codeeditor = CodeMirror.fromTextArea(document.getElementById("rawcontent"), {
-            lineNumbers: true,
-            matchBrackets: true
-        });
-
-        $('#form').submit(function (e) {
-            e.preventDefault()
-        });
-
-        $('select.dropdown').dropdown();
-        $('.popup').popup();
-        $('#message .close').click(function () {
-            $('#message').css('display', 'none')
-        });
-
         langReplace = {
             'c': 'text/x-csrc',
             'c++': 'text/x-csrc',
@@ -100,55 +81,78 @@
             'bash': 'shell',
             'html': 'htmlmixed'
         };
-        $('#lang').on('change', function () {
+
+        $(document).ready(function () {
+
+            // 初始化内容
+            codeeditor = CodeMirror.fromTextArea(document.getElementById("rawcontent"), {
+                lineNumbers: true,
+                matchBrackets: true
+            });
+            $('#lang_select').dropdown('set selected', {{ post.language_id }});
+            let other = $('#other');
+            other.val(other.attr('content'));
+            codeeditor.setValue($('#rawcontent').attr('content'));
             selected = $('#lang_select').dropdown('get text').toLowerCase();
             if (langReplace[selected]) {
                 selected = langReplace[selected];
             }
             codeeditor.setOption('mode', selected);
-        });
+            // 初始化内容
 
-        $('.submit').on('click', function () {
-            codeeditor.save();
-            if (!input_check())
-                return;
-
-            let submit = $('.submit');
-            submit.addClass('disabled');
-
-            form = $('#form');
-            form.addClass('loading');
-
-            let data = new FormData(form[0]);
-
-            let default_val = new Array();
-            default_val['title'] = '无标题';
-            default_val['author'] = '暂无';
-            default_val['language_id'] = '11';
-            default_val['validity_days'] = '3';
-            for (let key in default_val) {
-                if (!$.trim(data.get(key))) {
-                    data.set(key, default_val[key])
-                }
-            }
-
-            $.ajax({
-                url: '/api/post/',
-                type: 'POST',
-                data: data,
-                processData: false,
-                contentType: false,
-                complete: function (result) {
-                    rjson = result.responseJSON;
-                    if (rjson.success)
-                        window.location.href = '/show/' + rjson.data.post_id;
-                    else {
-                        show_error('(#' + rjson.error.code + ')' + rjson.error.message);
-                        submit.removeClass('disabled');
-                        form.removeClass('loading');
-                    }
-                }
+            // 绑定事件
+            $('#form').submit(function (e) { e.preventDefault() });
+            $('select.dropdown').dropdown();
+            $('.popup').popup();
+            $('#message .close').click(function () {
+                $('#message').css('display', 'none')
             });
+            // 绑定事件
+
+            $('#lang').on('change', function () {
+                selected = $('#lang_select').dropdown('get text').toLowerCase();
+                if (langReplace[selected]) {
+                    selected = langReplace[selected];
+                }
+                codeeditor.setOption('mode', selected);
+            });
+
+            $('.submit').on('click', function () {
+                codeeditor.save();
+                if (!input_check())
+                    return;
+
+                let submit = $('.submit');
+                submit.addClass('disabled');
+                form = $('#form');
+                form.addClass('loading');
+
+                let data = new FormData();
+                serialize = form.serializeArray();
+                for (let i = 0; i < serialize.length; i++) {
+                    data.append(serialize[i].name, serialize[i].value)
+                }
+
+                let xhr = new XMLHttpRequest();
+                xhr.open('PUT', '{{ url_for('api.post_with_id', post_id=post.id) }}');
+                xhr.onreadystatechange = function (ev) {
+                    if (xhr.readyState === 4) {
+                        let o = JSON.parse(xhr.response);
+                        if (xhr.status === 200) {
+                            window.location.href = '{{ url_for('show', post_id=post.id) }}';
+                        }
+                        else {
+                            if (o.error) {
+                                show_error(o.error);
+                                submit.removeClass('disabled');
+                                form.removeClass('loading');
+                            }
+                        }
+                    }
+                };
+                xhr.send(data);
+            });
+
         });
 
         function input_check() {
@@ -171,8 +175,7 @@
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/clojure/clojure.min.js"></script>
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/htmlmixed/htmlmixed.min.js"></script>
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/cmake/cmake.min.js"></script>
-    <script defer="defer"
-            src="https://cdn.bootcss.com/codemirror/5.38.0/mode/coffeescript/coffeescript.min.js"></script>
+    <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/coffeescript/coffeescript.min.js"></script>
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/commonlisp/commonlisp.min.js"></script>
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/css/css.min.js"></script>
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/python/python.min.js"></script>
@@ -194,3 +197,4 @@
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/xml/xml.min.js"></script>
     <script defer="defer" src="https://cdn.bootcss.com/codemirror/5.38.0/mode/yaml/yaml.min.js"></script>
 {%- endblock %}
+

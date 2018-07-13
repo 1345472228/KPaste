@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title -%}
+    <title>403 Forbidden</title>
+{%- endblock %}
+<head>
+</head>
+{% block body %}
+    <div class="ui container" style="position: relative; top: 3em;">
+        <h1>403 Forbidden</h1>
+        {% if not request.headers.get('referer') %}
+            <p>这里好像是禁区，来<a href="/">首页</a>看看？</p>
+        {% else %}
+            <p>这里好像是禁区，来<a href="/">首页</a>看看或者<a href="{{ request.headers.get('referer') }}">返回上页</a>？</p>
+        {% endif %}
+    </div>
+{% endblock %}
