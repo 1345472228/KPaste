@@ -1,3 +1,4 @@
+sqlurl.txt~
 sqlurl.txt
 alembic/
 alembic.ini
@@ -7,3 +8,4 @@ __pycache__/
 .idea/
 log/
 exp.txt
+kpaste.db
