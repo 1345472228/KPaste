@@ -296,3 +296,8 @@ class DB():
 
 if __name__ == "__main__":
     Base.metadata.create_all(engine)
+    d = DB()
+    with open('languages.txt') as f:
+        for x in f.readlines():
+            d.session.add(Language(name=x.strip()))
+        d.session.commit()
