@@ -10,11 +10,13 @@ from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 
 from exception import *
 
+
 class Tools():
     @classmethod
     def raw2html(cls, raw, lang):
         md = '```\n:::{} \n{}\n```\n'.format(lang, raw)
         return markdown.markdown(md, ["nl2br", "codehilite(linenums=True)", "extra"])
+
 
 with open('./sqlurl.txt') as f:
     engine = create_engine(f.readline(), echo=False)
@@ -120,18 +122,18 @@ class Post(Base):
     def __repr__(self):
         return "<Post(id={}, title='{}', author={}, language_id={}, " \
                "language={}, datetime={}, validity_days={})>". \
-            format( self.id, self.title, self.author,
-                    self.language_id, self.language,
-                    self.datetime, self.validity_days
-                    )
+            format(self.id, self.title, self.author,
+                   self.language_id, self.language,
+                   self.datetime, self.validity_days
+                   )
 
     def __str__(self):
         return "<Post(id={}, title='{}', author={}, language_id={}, " \
                "\language={}, datetime={}, validity_days={})>". \
-            format( self.id, self.title, self.author,
-                    self.language_id, self.language,
-                    self.datetime, self.validity_days
-                    )
+            format(self.id, self.title, self.author,
+                   self.language_id, self.language,
+                   self.datetime, self.validity_days
+                   )
 
     def is_expired(self):
         now_sec = datetime.datetime.now().timestamp()
@@ -256,16 +258,21 @@ class DB():
             raise
 
     _languages = None
+
+    def refresh_lang_cache(self):
+        languages = self.session.query(Language).all()
+        id_list = map(lambda l: l.id, languages)
+        self._languages = {lang_id: lang for lang_id, lang in zip(id_list, languages)}
+
     def query_lang_all(self, refresh=False):
         if refresh or self._languages is None:
-            self._languages = self.session.query(Language)
-        return self._languages.all()
+            self.refresh_lang_cache()
+        return self._languages.values()
 
     def query_lang_one(self, lang_id, refresh=False):
         if refresh or self._languages is None:
-            self._languages = self.session.query(Language)
-        return self._languages.filter(Language.id == lang_id).one_or_none()
-
+            self.refresh_lang_cache()
+        return self._languages.get(lang_id, None)
 
     def delete(self, obj):
         if isinstance(obj, Base):
@@ -279,6 +286,7 @@ class DB():
             raise TypeError('delete require a Base instance, but got a ' + type(obj))
 
     autodelete_log = []
+
     def check_validity(self):
         for q in self.query_post_all():
             if q.Post.is_expired():
