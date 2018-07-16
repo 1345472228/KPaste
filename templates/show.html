@@ -121,7 +121,7 @@
         AUTHORIZED = false;
 
         function isAuthorized() {
-            post_id = $('#post_id').text();
+            post_id = '{{ post.id }}';
             $.ajax({
                 url: '{{ url_for('api.authorized', post_id=post.id) }}',
                 type: 'POST',
@@ -135,7 +135,7 @@
                 }
             });
             return AUTHORIZED;
-        };
+        }
 
         function authorize(post_id, key, success, fail) {
             post_id = post_id.toString();
@@ -154,7 +154,7 @@
                         fail(rjson);
                 }
             })
-        };
+        }
 
         function authorize_popup(success, fail) {
             $('#access_modal').modal('show');
@@ -162,7 +162,7 @@
             $('#access_enter').unbind('click');
             $('#access_enter').one('click', function () {
                 key = $('#key').val();
-                post_id = $('#post_id').text();
+                post_id = '{{ post.id }}';
                 authorize(post_id, key, success, fail);
             });
         }

@@ -18,8 +18,14 @@ class Tools():
         return markdown.markdown(md, ["nl2br", "codehilite(linenums=True)", "extra"])
 
 
-with open('./sqlurl.txt') as f:
-    engine = create_engine(f.readline(), echo=False)
+import os
+
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if not DATABASE_URL:
+    with open('./sqlurl.txt') as f:
+        DATABASE_URL = f.readline()
+
+engine = create_engine(DATABASE_URL, echo=False)
 
 Base = declarative_base()
 

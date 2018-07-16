@@ -1,21 +1,18 @@
-from flask import Flask, url_for, redirect, render_template, request, g, abort, session, make_response
+from flask import Flask, render_template, g, abort
 
 import db
 import timer
 import api
-import logger
 
 app = Flask(__name__)
 app.config.from_object('config.Default')
 app.register_blueprint(api.api, url_prefix='/api')
 
-logger.init_app(app)
-db = db.DB()
-db.init_app(app)
+db_class = db.DB()
 
-timer.init_db(db)
-app.add_url_rule('/timer/begin/', None, timer.begin)
-app.add_url_rule('/timer/stop/', None, timer.stop)
+# init plugins
+db_class.init_app(app)
+timer.init_app(app)
 
 days_opt = {
     3: '三天',
@@ -27,7 +24,7 @@ days_opt = {
 @app.route('/')
 @app.route('/new/')
 def new():
-    langs = db.query_lang_all()
+    langs = g.db.query_lang_all()
     return render_template('new.html', languages=langs, days_opt=days_opt, default_lang='c')
 
 
@@ -46,7 +43,7 @@ def edit(post_id):
 
 @app.route('/show/<int:post_id>/')
 def show(post_id):
-    post = db.query_post_one(post_id=post_id)
+    post = g.db.query_post_one(post_id=post_id)
     if post:
         return render_template('show.html', post=post)
     else:
