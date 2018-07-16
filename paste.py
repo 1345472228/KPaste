@@ -65,11 +65,12 @@ def init_db():
         l = db_class.query_lang_all()
     except:
         db.Base.metadata.create_all(db.engine)
-    if not l:
+    if len(l) == 0:
         with open('languages.txt') as f:
             for x in f.readlines():
                 db_class.session.add(db.Language(name=x.strip()))
             db_class.session.commit()
+    return str(l)
 
 if __name__ == '__main__':
     app.run()
