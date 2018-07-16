@@ -117,31 +117,6 @@ def post():
             json_header
         )
 
-        if err_list:
-            err_msg = 'require argment(s): ' + ';'.join(err_list)
-            return make_response(
-                # error_info.format(err_msg),
-                mkjson_error(err_msg, '100'),
-                json_header
-            )
-
-        lang = g.db.query_lang_one(lang_id=form['language_id'])
-        if lang is None:
-            return make_response(
-                # error_info.format('not a correct language_id'),
-                mkjson_error('no such language', 302),
-                json_header
-            )
-
-        form['language'] = lang
-
-        new_post = g.db.add_post(form, check_form=False)
-        print(new_post.language)
-        return make_response(
-            # succeed_info.format('post_id', new_post.id),
-            mkjson_success(data={'post_id': new_post.id}),
-            json_header
-        )
     elif request.method == 'GET':
         try:
             page = int(request.args.get('page', 1))
