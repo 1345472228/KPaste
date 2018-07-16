@@ -62,9 +62,10 @@ def err403(e):
 @app.route('/_init_db_/start/')
 def init_db():
     try:
-        db_class.query_lang_all()
+        l = db_class.query_lang_all()
     except:
         db.Base.metadata.create_all(db.engine)
+    if not l:
         with open('languages.txt') as f:
             for x in f.readlines():
                 db_class.session.add(db.Language(name=x.strip()))
