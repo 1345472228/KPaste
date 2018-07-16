@@ -209,9 +209,10 @@ class DB():
         if err_list:
             raise ArgRequireError(err_list)
 
-        lang_obj = self.query_lang_one(lang_id=form.get('language_id'))
+        lang_id = form.get('language_id')
+        lang_obj = self.query_lang_one(lang_id=lang_id)
         if lang_obj is None:
-            raise NoSuchLangError
+            raise NoSuchLangError(lang_id)
 
         form['html'] = Tools.raw2html(form.get('rawcontent'), lang_obj.name)
 
@@ -278,6 +279,10 @@ class DB():
     def query_lang_one(self, lang_id, refresh=False):
         if refresh or self._languages is None:
             self.refresh_lang_cache()
+        try:
+            lang_id = int(lang_id)
+        except ValueError:
+            return None
         return self._languages.get(lang_id, None)
 
     def delete(self, obj):
