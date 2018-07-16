@@ -59,6 +59,16 @@ def err404(e):
 def err403(e):
     return render_template('403.html'), 403
 
+@app.route('/_init_db_/start/')
+def init_db():
+    try:
+        db_class.query_lang_all()
+    except:
+        db.Base.metadata.create_all(db.engine)
+        with open('languages.txt') as f:
+            for x in f.readlines():
+                db_class.session.add(db.Language(name=x.strip()))
+            db_class.session.commit()
 
 if __name__ == '__main__':
     app.run()
