@@ -95,7 +95,8 @@ class Post(Base):
         for x in cls._require_items:
             if x not in form_dict:
                 err.append(x)
-        return err
+        if err:
+            raise ArgRequireError(', '.join(err))
 
     def update(self, form):
         warning = []
@@ -205,9 +206,7 @@ class DB():
 
     def add_post(self, form, **kwargs):
 
-        err_list = Post.check_form(form)
-        if err_list:
-            raise ArgRequireError(err_list)
+        Post.check_form(form)
 
         lang_id = form.get('language_id')
         lang_obj = self.query_lang_one(lang_id=lang_id)
